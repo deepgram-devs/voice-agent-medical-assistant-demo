@@ -1,0 +1,40 @@
+{
+  "name": "deepgram-voicebot",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "prettier": "prettier"
+  },
+  "dependencies": {
+    "@deepgram/sdk": "^3.9.0",
+    "@headlessui/react": "^2.2.0",
+    "@lottiefiles/react-lottie-player": "^3.5.3",
+    "@react-hook/resize-observer": "^2.0.2",
+    "@types/uuid": "^10.0.0",
+    "@uidotdev/usehooks": "^2.4.1",
+    "idb": "^8.0.2",
+    "next": "14.2.6",
+    "react": "^18",
+    "react-device-detect": "^2.2.3",
+    "react-dom": "^18",
+    "sass": "^1.81.0",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.14.10",
+    "@types/react": "18.3.4",
+    "@typescript-eslint/eslint-plugin": "^7.16.0",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.6",
+    "eslint-config-prettier": "^9.1.0",
+    "postcss": "^8.4.49",
+    "prettier": "^3.3.3",
+    "tailwindcss": "^3.4.15",
+    "typescript": "5.7.2"
+  }
+}
