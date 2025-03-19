@@ -1,0 +1,32 @@
+.scan {
+  left: 100%;
+  animation: scanRight 3s cubic-bezier(0.2, 0.5, 0.8, 0.5) 1;
+}
+
+@keyframes scanRight {
+  0% {
+    left: -53px;
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0.7;
+  }
+}
+
+.fadeOut {
+  opacity: 0;
+  animation: fade 0.3s linear 1;
+}
+
+@keyframes fade {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
