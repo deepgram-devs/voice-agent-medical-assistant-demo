@@ -1,0 +1,112 @@
+@tailwind components;
+
+@layer components {
+  .voice-list {
+    @apply flex relative;
+
+    &__item,
+    &__icon,
+    &__info {
+      @apply transition-all duration-200 relative;
+    }
+
+    &__icon {
+      @apply rounded-full shrink-0 block;
+    }
+
+    &__info {
+      @apply md:text-base text-sm overflow-hidden;
+    }
+
+    &--default {
+      @apply h-14 space-x-1 justify-end items-center;
+
+      .voice-list__item {
+        &--unselected .voice-list__icon {
+          @apply opacity-50;
+        }
+
+        &--selected .voice-list__icon {
+          @apply w-14 h-14 opacity-100;
+        }
+
+        &:hover {
+          .voice-list__icon {
+            @apply opacity-100;
+          }
+
+          .voice-list__info {
+            @apply md:flex;
+          }
+        }
+      }
+
+      .voice-list__icon {
+        @apply w-10 h-10;
+      }
+
+      .voice-list__info {
+        @apply absolute right-0 hidden space-x-1 bg-gray-850 border border-gray-800 rounded-sm p-4;
+      }
+    }
+
+    &--collapsibleOpen {
+      @apply flex-col-reverse;
+
+      .voice-list__item {
+        @apply flex items-end bottom-0;
+
+        &--selected {
+          @apply items-center;
+
+          .voice-list__icon {
+            @apply w-14 h-14;
+          }
+        }
+
+        &--unselected {
+          .voice-list__icon {
+            @apply w-20 h-20;
+          }
+
+          .voice-list__info {
+            @apply flex flex-col;
+          }
+        }
+      }
+
+      .voice-list__info {
+        @apply pl-2;
+      }
+    }
+
+    &--collapsibleClosed {
+      @apply flex-col-reverse;
+
+      .voice-list__item {
+        @apply flex items-end left-0 bottom-0;
+
+        &--selected {
+          @apply items-center;
+
+          .voice-list__icon {
+            @apply w-14 h-14;
+          }
+        }
+
+        &--unselected {
+          .voice-list__icon {
+            @apply opacity-0 h-0 w-0;
+          }
+
+          .voice-list__info {
+            @apply flex flex-col;
+          }
+        }
+      }
+      .voice-list__info {
+        @apply pl-2 opacity-0 h-0 w-0;
+      }
+    }
+  }
+}
