@@ -1,6 +1,6 @@
 # Deepgram Voice Agent Medical Assistant Demo
 
-A demo that shows how to use the [Deepgram Voice Agent API]() to build a Voice Agent Medical Assistant.
+A demo that shows the [Deepgram Voice Agent API](https://developers.deepgram.com/docs/voice-agent) being used to power a Medical Assistant Voice Agent.
 
 ![ui-image](./images/med-assistant.png)
 
