@@ -32,7 +32,8 @@ To run the demo locally:
 
 >  usage:write is the only required Deepgram API scope
 
-1. Set your `DEEPGRAM_API_KEY` environment variable in the `.env.development` file.
+1. Make a copy of env.example
+2. Set your `DEEPGRAM_API_KEY` environment variable in the new `.env` file.
 2. Run:
 
 ```sh
