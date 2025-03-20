@@ -65,3 +65,5 @@ We love to hear from you so if you have questions, comments or find a bug in the
 [Deepgram](https://deepgram.com)
 
 ## License
+
+This project is licensed under the MIT license. See the [LICENSE](./LICENSE) file for more info.
