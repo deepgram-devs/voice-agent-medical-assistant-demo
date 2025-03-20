@@ -20,6 +20,8 @@ Before you start, it's essential to generate a Deepgram API key to use in this p
 
 ## Getting started
 
+Fork or Clone this repo.
+
 Install project dependencies:
 
 ```sh
@@ -28,7 +30,7 @@ npm install
 
 ```
 
-To run the demo locally:
+Run the demo locally:
 
 >  usage:write is the only required Deepgram API scope.
 
