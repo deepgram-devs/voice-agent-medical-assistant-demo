@@ -2,6 +2,8 @@
 
 A demo that shows how to use the [Deepgram Voice Agent API]() to build a Voice Agent Medical Assistant.
 
+![ui-image](./images/med-assistant.png)
+
 ## What is Deepgram?
 
 [Deepgram’s](https://deepgram.com/) voice AI platform provides APIs for speech-to-text, text-to-speech, and full speech-to-speech voice agents. Over 200,000+ developers use Deepgram to build voice AI products and features.
@@ -30,20 +32,14 @@ To run the demo locally:
 
 >  usage:write is the only required Deepgram API scope
 
-1. Set your `DEEPGRAM_API_KEY` environment variable in the `.env.development` file.
+1. Make a copy of env.example
+2. Set your `DEEPGRAM_API_KEY` environment variable in the new `.env` file.
 2. Run:
 
 ```sh
 npm run dev
 
 ```
-
-To run the demo on Next.JS
-
-> TBD
-
-
-When Next.js starts up, it'll give you a localhost URL to visit.
 
 ## Issue Reporting
 
