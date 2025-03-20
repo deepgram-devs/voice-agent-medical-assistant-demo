@@ -30,16 +30,19 @@ npm install
 
 To run the demo locally:
 
->  usage:write is the only required Deepgram API scope
+>  usage:write is the only required Deepgram API scope.
 
-1. Make a copy of env.example
+1. Make a copy of `env.example` and create a file called `.env`
 2. Set your `DEEPGRAM_API_KEY` environment variable in the new `.env` file.
-2. Run:
+3. Run:
 
 ```sh
-npm run dev
+npm run build
 
+npm run dev
 ```
+
+4. visit `http://localhost:3000/` to interact with the demo.
 
 ## Issue Reporting
 
@@ -51,7 +54,7 @@ We love to hear from you so if you have questions, comments or find a bug in the
 
 > be sure to set the repo-name in the issue URL.
 
-- [Open an issue in this repository](https://github.com/deepgram-starters/{repo-name]/issues/new)
+- [Open an issue in this repository](https://github.com/deepgram-starters/voice-agent-medical-assistant-demo/issues/new)
 - [Join the Deepgram Github Discussions Community](https://github.com/orgs/deepgram/discussions)
 - [Join the Deepgram Discord Community](https://discord.gg/xWRaCDBtW4)
 
