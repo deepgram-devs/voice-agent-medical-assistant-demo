@@ -54,8 +54,6 @@ If you have found a bug or if you have a feature request, please report them at 
 
 We love to hear from you so if you have questions, comments or find a bug in the project, let us know! You can either:
 
-> be sure to set the repo-name in the issue URL.
-
 - [Open an issue in this repository](https://github.com/deepgram-starters/voice-agent-medical-assistant-demo/issues/new)
 - [Join the Deepgram Github Discussions Community](https://github.com/orgs/deepgram/discussions)
 - [Join the Deepgram Discord Community](https://discord.gg/xWRaCDBtW4)
