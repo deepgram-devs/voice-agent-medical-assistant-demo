@@ -9,6 +9,10 @@ export const getApiKey = async (): Promise<string> => {
 };
 
 export const sendMicToSocket = (socket: WebSocket) => (event: AudioProcessingEvent) => {
+  if (socket.readyState !== WebSocket.OPEN) {
+    console.warn('WebSocket is not open, skipping audio data send');
+    return;
+  }
   const inputData = event?.inputBuffer?.getChannelData(0);
   const downsampledData = downsample(inputData, 48000, 16000);
   const audioDataToSend = convertFloat32ToInt16(downsampledData);
@@ -16,10 +20,18 @@ export const sendMicToSocket = (socket: WebSocket) => (event: AudioProcessingEve
 };
 
 export const sendSocketMessage = (socket: WebSocket, message: DGMessage) => {
+  if (socket.readyState !== WebSocket.OPEN) {
+    console.warn('WebSocket is not open, skipping message send:', message);
+    return;
+  }
   socket.send(JSON.stringify(message));
 };
 
 export const sendKeepAliveMessage = (socket: WebSocket) => () => {
+  if (socket.readyState !== WebSocket.OPEN) {
+    console.warn('WebSocket is not open, skipping keepalive');
+    return;
+  }
   sendSocketMessage(socket, { type: "KeepAlive" });
 };
 
@@ -36,19 +48,53 @@ export interface AudioConfig {
   };
 }
 
+export interface ProviderConfig {
+  type: string;
+  model?: string;
+  model_id?: string;
+  voice?: {
+    mode: string;
+    id: string;
+  };
+  language?: string;
+  language_code?: string;
+  temperature?: number;
+  endpoint?: {
+    url: string;
+    headers: Record<string, string>;
+  };
+}
+
+export interface FunctionDefinition {
+  name: string;
+  description: string;
+  parameters: {
+    type: string;
+    properties: Record<string, any>;
+    required: string[];
+  };
+  endpoint?: {
+    url: string;
+    method: string;
+    headers: Record<string, string>;
+  };
+}
+
 export interface AgentConfig {
-  listen: { model: string };
-  speak: {
-    model: string;
-    temp?: number;
-    rep_penalty?: number;
+  language?: string;
+  listen: {
+    provider: ProviderConfig;
   };
   think: {
-    provider: { type: string; fallback_to_groq?: boolean };
-    model: string;
-    instructions: string;
-    functions?: LlmFunction[];
+    provider: ProviderConfig;
+    prompt: string;
+    instructions?: string;
+    functions?: FunctionDefinition[];
   };
+  speak: {
+    provider: ProviderConfig;
+  };
+  greeting?: string;
 }
 
 export interface ContextConfig {
@@ -58,6 +104,8 @@ export interface ContextConfig {
 
 export interface StsConfig {
   type: string;
+  experimental?: boolean;
+  mip_opt_out?: boolean;
   audio: AudioConfig;
   agent: AgentConfig;
   context?: ContextConfig;
@@ -98,6 +146,10 @@ export interface Header {
 export interface Voice {
   name: string;
   canonical_name: string;
+  provider: {
+    type: string;
+    model: string;
+  };
   metadata: {
     accent: string;
     gender: string;
@@ -108,12 +160,31 @@ export interface Voice {
 }
 
 export type DGMessage =
-  | { type: "SettingsConfiguration"; audio: AudioConfig; agent: AgentConfig }
-  | { type: "UpdateInstructions"; instructions: string }
-  | { type: "UpdateSpeak"; model: string }
+  | {
+    type: "Settings";
+    experimental?: boolean;
+    mip_opt_out?: boolean;
+    audio: AudioConfig;
+    agent: AgentConfig
+  }
+  | { type: "UpdateInstructions"; prompt: string }
+  | { type: "UpdateSpeak"; provider: ProviderConfig }
   | { type: "KeepAlive" }
-  | { type: "FunctionCallResponse"; function_call_id: string; output: 'success' | 'error'; error?: string }
-  | { type: "FunctionCallRequest"; function_name: string; function_call_id: string; input: Record<string, string | number | boolean> };
+  | {
+    type: "FunctionCallRequest";
+    functions: Array<{
+      id: string;
+      name: string;
+      arguments: string;
+      client_side: boolean;
+    }>;
+  }
+  | {
+    type: "FunctionCallResponse";
+    id: string;
+    name: string;
+    content: string;
+  };
 
 export const withBasePath = (path: string): string => {
   // In Vite, we don't need to handle basePath as it's handled by the dev server

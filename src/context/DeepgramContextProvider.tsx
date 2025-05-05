@@ -1,4 +1,4 @@
-import { type ReactNode, createContext, useContext, useState, useRef } from "react";
+import { type ReactNode, createContext, useContext, useState, useRef, useEffect } from "react";
 import { getApiKey, sendKeepAliveMessage } from "../utils/deepgramUtils";
 
 enum SocketState {
@@ -32,53 +32,94 @@ const DeepgramContextProvider = ({ children }: { children: ReactNode }) => {
     defaultContext.rateLimited,
   );
   const keepAlive = useRef<ReturnType<typeof setTimeout> | undefined>();
+  const reconnectTimeout = useRef<ReturnType<typeof setTimeout> | undefined>();
   const maxReconnectAttempts = 5;
 
   const connectToDeepgram = async (reconnectAttempts: number = 0) => {
+    // Clear any existing reconnect timeout
+    if (reconnectTimeout.current) {
+      clearTimeout(reconnectTimeout.current);
+    }
+
     if (reconnectAttempts >= maxReconnectAttempts) {
       console.log("Max reconnect attempts reached.");
-      // we don't actually know this is a rate limit, but want to show this anyways
       setRateLimited(true);
       return;
     }
 
+    // If there's an existing socket, close it properly
+    if (socket && socket.readyState !== WebSocket.CLOSED) {
+      socket.close();
+    }
+
     setSocketState(SocketState.Connecting);
 
-    const newSocket = new WebSocket("wss://agent.deepgram.com/agent", [
-      "token",
-      await getApiKey(),
-    ]);
+    try {
+      const newSocket = new WebSocket("wss://agent.deepgram.com/v1/agent/converse", [
+        "token",
+        await getApiKey(),
+      ]);
 
-    const onOpen = () => {
-      setSocketState(SocketState.Connected);
-      console.log("WebSocket connected.");
-      keepAlive.current = setInterval(sendKeepAliveMessage(newSocket), 6000);
-    };
+      const onOpen = () => {
+        setSocketState(SocketState.Connected);
+        console.log("WebSocket connected.");
+        // Clear any existing keepalive interval
+        if (keepAlive.current) {
+          clearInterval(keepAlive.current);
+        }
+        keepAlive.current = setInterval(sendKeepAliveMessage(newSocket), 6000);
+      };
 
-    const onError = (err: Event) => {
+      const onError = (err: Event) => {
+        setSocketState(SocketState.Failed);
+        console.error("Websocket error", err);
+      };
+
+      const onClose = () => {
+        if (keepAlive.current) {
+          clearInterval(keepAlive.current);
+        }
+        setSocketState(SocketState.Closed);
+        console.info("WebSocket closed. Attempting to reconnect...");
+        // Use exponential backoff for reconnection
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+        reconnectTimeout.current = setTimeout(() => connectToDeepgram(reconnectAttempts + 1), delay);
+      };
+
+      const onMessage = () => {
+        // console.info("message", e);
+      };
+
+      newSocket.binaryType = "arraybuffer";
+      newSocket.addEventListener("open", onOpen);
+      newSocket.addEventListener("error", onError);
+      newSocket.addEventListener("close", onClose);
+      newSocket.addEventListener("message", onMessage);
+
+      setSocket(newSocket);
+    } catch (error) {
+      console.error("Failed to create WebSocket:", error);
       setSocketState(SocketState.Failed);
-      console.error("Websocket error", err);
-    };
-
-    const onClose = () => {
-      clearInterval(keepAlive.current);
-      setSocketState(SocketState.Closed);
-      console.info("WebSocket closed. Attempting to reconnect...");
-      setTimeout(() => connectToDeepgram(reconnectAttempts + 1), 3000); // reconnect after 3 seconds
-    };
-
-    const onMessage = () => {
-      // console.info("message", e);
-    };
-
-    newSocket.binaryType = "arraybuffer";
-    newSocket.addEventListener("open", onOpen);
-    newSocket.addEventListener("error", onError);
-    newSocket.addEventListener("close", onClose);
-    newSocket.addEventListener("message", onMessage);
-
-    setSocket(newSocket);
+      // Retry connection with exponential backoff
+      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+      reconnectTimeout.current = setTimeout(() => connectToDeepgram(reconnectAttempts + 1), delay);
+    }
   };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (keepAlive.current) {
+        clearInterval(keepAlive.current);
+      }
+      if (reconnectTimeout.current) {
+        clearTimeout(reconnectTimeout.current);
+      }
+      if (socket && socket.readyState !== WebSocket.CLOSED) {
+        socket.close();
+      }
+    };
+  }, [socket]);
 
   return (
     <DeepgramContext.Provider
