@@ -93,95 +93,109 @@ export default function Scheduling() {
 
     const handleMessage = (event: MessageEvent) => {
       try {
-        const message = JSON.parse(event.data);
-        if (message.type === 'FunctionCallRequest') {
-          const { functions } = message;
+        // If it's an ArrayBuffer, try to decode as JSON
+        if (event.data instanceof ArrayBuffer) {
+          const text = new TextDecoder().decode(event.data);
+          try {
+            const message = JSON.parse(text);
+            if (message.type === 'FunctionCallRequest') {
+              const { functions } = message;
 
-          // Handle each function call
-          const handleFunctionCalls = async () => {
-            try {
-              for (const func of functions) {
-                const { id, name, arguments: argsStr } = func;
-                const args = JSON.parse(argsStr);
+              // Handle each function call
+              const handleFunctionCalls = async () => {
+                try {
+                  for (const func of functions) {
+                    const { id, name, arguments: argsStr } = func;
+                    const args = JSON.parse(argsStr);
 
-                switch (name) {
-                  case 'set_patient_name':
-                    setCurrentAppointment(prev => ({
-                      ...prev,
-                      patientName: args.name
-                    }));
-                    break;
-                  case 'set_mrn':
-                    setCurrentAppointment(prev => ({
-                      ...prev,
-                      mrn: args.mrn
-                    }));
-                    break;
-                  case 'set_date':
-                    setCurrentAppointment(prev => ({
-                      ...prev,
-                      date: args.date
-                    }));
-                    break;
-                  case 'set_time':
-                    setCurrentAppointment(prev => ({
-                      ...prev,
-                      time: args.time
-                    }));
-                    break;
-                  case 'set_provider':
-                    setCurrentAppointment(prev => ({
-                      ...prev,
-                      provider: args.provider
-                    }));
-                    break;
-                  case 'set_reason':
-                    setCurrentAppointment(prev => ({
-                      ...prev,
-                      reason: args.reason
-                    }));
-                    break;
-                  case 'schedule_appointment':
-                    await handleSchedule();
-                    break;
-                  case 'clear_appointment':
-                    setCurrentAppointment({
-                      patientName: '',
-                      mrn: '',
-                      date: '',
-                      time: '',
-                      provider: '',
-                      reason: '',
-                      status: 'pending'
+                    switch (name) {
+                      case 'set_patient_name':
+                        setCurrentAppointment(prev => ({
+                          ...prev,
+                          patientName: args.name
+                        }));
+                        break;
+                      case 'set_mrn':
+                        setCurrentAppointment(prev => ({
+                          ...prev,
+                          mrn: args.mrn
+                        }));
+                        break;
+                      case 'set_date':
+                        setCurrentAppointment(prev => ({
+                          ...prev,
+                          date: args.date
+                        }));
+                        break;
+                      case 'set_time':
+                        setCurrentAppointment(prev => ({
+                          ...prev,
+                          time: args.time
+                        }));
+                        break;
+                      case 'set_provider':
+                        setCurrentAppointment(prev => ({
+                          ...prev,
+                          provider: args.provider
+                        }));
+                        break;
+                      case 'set_reason':
+                        setCurrentAppointment(prev => ({
+                          ...prev,
+                          reason: args.reason
+                        }));
+                        break;
+                      case 'schedule_appointment':
+                        await handleSchedule();
+                        break;
+                      case 'clear_appointment':
+                        setCurrentAppointment({
+                          patientName: '',
+                          mrn: '',
+                          date: '',
+                          time: '',
+                          provider: '',
+                          reason: '',
+                          status: 'pending'
+                        });
+                        break;
+                      default:
+                        throw new Error(`Unknown function: ${name}`);
+                    }
+
+                    // Send success response
+                    sendSocketMessage(socket, {
+                      type: 'FunctionCallResponse',
+                      id,
+                      name,
+                      content: 'Success'
                     });
-                    break;
-                  default:
-                    throw new Error(`Unknown function: ${name}`);
+                  }
+                } catch (error) {
+                  console.error('Error handling function calls:', error);
+                  // Send error response for each failed function
+                  for (const func of functions) {
+                    sendSocketMessage(socket, {
+                      type: 'FunctionCallResponse',
+                      id: func.id,
+                      name: func.name,
+                      content: error instanceof Error ? error.message : 'Unknown error'
+                    });
+                  }
                 }
+              };
 
-                // Send success response
-                sendSocketMessage(socket, {
-                  type: 'FunctionCallResponse',
-                  id,
-                  name,
-                  content: 'Success'
-                });
-              }
-            } catch (error) {
-              console.error('Error handling function calls:', error);
-              // Send error response for each failed function
-              for (const func of functions) {
-                sendSocketMessage(socket, {
-                  type: 'FunctionCallResponse',
-                  id: func.id,
-                  name: func.name,
-                  content: error instanceof Error ? error.message : 'Unknown error'
-                });
-              }
+              handleFunctionCalls();
             }
-          };
-
-          handleFunctionCalls();
+          } catch {
+            // Not JSON, likely audio data: handle or ignore as needed
+          }
+        } else if (typeof event.data === 'string') {
+          // (Optional: if you ever send string JSON)
+          const message = JSON.parse(event.data);
+          // handle JSON message
+        } else {
+          // Handle other types (e.g., Blob) if needed
         }
       } catch (error) {
         console.error('Error handling message:', error);
@@ -208,22 +222,24 @@ export default function Scheduling() {
     if (content.includes('scheduling') || content.includes('start scheduling')) {
       setIsActiveAppointment(true);
       setCurrentAppointment({
-        type: '',
-        timestamp: '',
-        duration: 30,
-        notes: '',
         patientName: '',
         mrn: '',
+        date: '',
+        time: '',
+        provider: '',
+        reason: '',
+        status: 'pending'
       });
     } else if (content.includes('cancel scheduling')) {
       setIsActiveAppointment(false);
       setCurrentAppointment({
-        type: '',
-        timestamp: '',
-        duration: 30,
-        notes: '',
         patientName: '',
         mrn: '',
+        date: '',
+        time: '',
+        provider: '',
+        reason: '',
+        status: 'pending'
       });
     }
   }, [messages]);

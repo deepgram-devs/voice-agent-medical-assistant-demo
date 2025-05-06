@@ -199,134 +199,273 @@ export default function ClinicalNotes() {
 
     const handleMessage = (event: MessageEvent) => {
       try {
-        const message = JSON.parse(event.data);
-        if (message.type === 'FunctionCallRequest') {
-          const { functions } = message;
+        if (event.data instanceof ArrayBuffer) {
+          const text = new TextDecoder().decode(event.data);
+          try {
+            const message = JSON.parse(text);
+            if (message.type === 'FunctionCallRequest') {
+              const { functions } = message;
 
-          // Handle each function call
-          const handleFunctionCalls = async () => {
-            try {
-              for (const func of functions) {
-                const { id, name, arguments: argsStr } = func;
-                const args = JSON.parse(argsStr);
+              // Handle each function call
+              const handleFunctionCalls = async () => {
+                try {
+                  for (const func of functions) {
+                    const { id, name, arguments: argsStr } = func;
+                    const args = JSON.parse(argsStr);
 
-                switch (name) {
-                  case 'set_patient_name':
-                    setCurrentFields(prev => ({
-                      ...prev,
-                      demographics: { ...prev.demographics, name: args.name }
-                    }));
-                    break;
-                  case 'set_date_of_birth':
-                    setCurrentFields(prev => ({
-                      ...prev,
-                      demographics: { ...prev.demographics, dateOfBirth: args.dateOfBirth }
-                    }));
-                    break;
-                  case 'set_gender':
-                    setCurrentFields(prev => ({
-                      ...prev,
-                      demographics: { ...prev.demographics, gender: args.gender }
-                    }));
-                    break;
-                  case 'set_mrn':
-                    setCurrentFields(prev => ({
-                      ...prev,
-                      demographics: { ...prev.demographics, mrn: args.mrn }
-                    }));
-                    break;
-                  case 'set_visit_date':
-                    setCurrentFields(prev => ({
-                      ...prev,
-                      visitInfo: { ...prev.visitInfo, date: args.date }
-                    }));
-                    break;
-                  case 'set_visit_time':
-                    setCurrentFields(prev => ({
-                      ...prev,
-                      visitInfo: { ...prev.visitInfo, time: args.time }
-                    }));
-                    break;
-                  case 'set_visit_type':
-                    setCurrentFields(prev => ({
-                      ...prev,
-                      visitInfo: { ...prev.visitInfo, visitType: args.visitType }
-                    }));
-                    break;
-                  case 'set_chief_complaint':
-                    setCurrentFields(prev => ({
-                      ...prev,
-                      clinicalInfo: { ...prev.clinicalInfo, chiefComplaint: args.complaint }
-                    }));
-                    break;
-                  case 'set_present_illness':
-                    setCurrentFields(prev => ({
-                      ...prev,
-                      clinicalInfo: { ...prev.clinicalInfo, presentIllness: args.illness }
-                    }));
-                    break;
-                  case 'set_review_of_systems':
-                    setCurrentFields(prev => ({
-                      ...prev,
-                      clinicalInfo: { ...prev.clinicalInfo, reviewOfSystems: args.systems }
-                    }));
-                    break;
-                  case 'set_physical_exam':
-                    setCurrentFields(prev => ({
-                      ...prev,
-                      clinicalInfo: { ...prev.clinicalInfo, physicalExam: args.exam }
-                    }));
-                    break;
-                  case 'set_assessment':
-                    setCurrentFields(prev => ({
-                      ...prev,
-                      clinicalInfo: { ...prev.clinicalInfo, assessment: args.assessment }
-                    }));
-                    break;
-                  case 'set_plan':
-                    setCurrentFields(prev => ({
-                      ...prev,
-                      clinicalInfo: { ...prev.clinicalInfo, plan: args.plan }
-                    }));
-                    break;
-                  case 'save_note':
-                    await handleSaveNote();
-                    break;
-                  case 'clear_note':
-                    setCurrentNote('');
-                    setCurrentFields({
-                      demographics: {},
-                      visitInfo: {},
-                      clinicalInfo: {},
+                    switch (name) {
+                      case 'set_patient_name':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          demographics: { ...prev.demographics, name: args.name }
+                        }));
+                        break;
+                      case 'set_date':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          demographics: { ...prev.demographics, dateOfBirth: args.dateOfBirth }
+                        }));
+                        break;
+                      case 'set_gender':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          demographics: { ...prev.demographics, gender: args.gender }
+                        }));
+                        break;
+                      case 'set_mrn':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          demographics: { ...prev.demographics, mrn: args.mrn }
+                        }));
+                        break;
+                      case 'set_visit_date':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          visitInfo: { ...prev.visitInfo, date: args.date }
+                        }));
+                        break;
+                      case 'set_visit_time':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          visitInfo: { ...prev.visitInfo, time: args.time }
+                        }));
+                        break;
+                      case 'set_visit_type':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          visitInfo: { ...prev.visitInfo, visitType: args.visitType }
+                        }));
+                        break;
+                      case 'set_chief_complaint':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          clinicalInfo: { ...prev.clinicalInfo, chiefComplaint: args.complaint }
+                        }));
+                        break;
+                      case 'set_present_illness':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          clinicalInfo: { ...prev.clinicalInfo, presentIllness: args.illness }
+                        }));
+                        break;
+                      case 'set_review_of_systems':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          clinicalInfo: { ...prev.clinicalInfo, reviewOfSystems: args.systems }
+                        }));
+                        break;
+                      case 'set_physical_exam':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          clinicalInfo: { ...prev.clinicalInfo, physicalExam: args.exam }
+                        }));
+                        break;
+                      case 'set_assessment':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          clinicalInfo: { ...prev.clinicalInfo, assessment: args.assessment }
+                        }));
+                        break;
+                      case 'set_plan':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          clinicalInfo: { ...prev.clinicalInfo, plan: args.plan }
+                        }));
+                        break;
+                      case 'save_note':
+                        await handleSaveNote();
+                        break;
+                      case 'clear_note':
+                        setCurrentNote('');
+                        setCurrentFields({
+                          demographics: {},
+                          visitInfo: {},
+                          clinicalInfo: {},
+                        });
+                        break;
+                      default:
+                        throw new Error(`Unknown function: ${name}`);
+                    }
+
+                    // Send success response
+                    sendSocketMessage(socket, {
+                      type: 'FunctionCallResponse',
+                      id,
+                      name,
+                      content: 'Success'
                     });
-                    break;
-                  default:
-                    throw new Error(`Unknown function: ${name}`);
+                  }
+                } catch (error) {
+                  console.error('Error handling function calls:', error);
+                  // Send error response for each failed function
+                  for (const func of functions) {
+                    sendSocketMessage(socket, {
+                      type: 'FunctionCallResponse',
+                      id: func.id,
+                      name: func.name,
+                      content: error instanceof Error ? error.message : 'Unknown error'
+                    });
+                  }
                 }
+              };
 
-                // Send success response
-                sendSocketMessage(socket, {
-                  type: 'FunctionCallResponse',
-                  id,
-                  name,
-                  content: 'Success'
-                });
-              }
-            } catch (error) {
-              console.error('Error handling function calls:', error);
-              // Send error response for each failed function
-              for (const func of functions) {
-                sendSocketMessage(socket, {
-                  type: 'FunctionCallResponse',
-                  id: func.id,
-                  name: func.name,
-                  content: error instanceof Error ? error.message : 'Unknown error'
-                });
-              }
+              handleFunctionCalls();
             }
-          };
+          } catch {
+            // Not JSON, likely audio data: handle or ignore as needed
+          }
+        } else if (typeof event.data === 'string') {
+          const message = JSON.parse(event.data);
+          if (message.type === 'FunctionCallRequest') {
+            const { functions } = message;
 
-          handleFunctionCalls();
+            // Handle each function call
+            const handleFunctionCalls = async () => {
+              try {
+                for (const func of functions) {
+                  const { id, name, arguments: argsStr } = func;
+                  const args = JSON.parse(argsStr);
+
+                  switch (name) {
+                    case 'set_patient_name':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        demographics: { ...prev.demographics, name: args.name }
+                      }));
+                      break;
+                    case 'set_date':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        demographics: { ...prev.demographics, dateOfBirth: args.dateOfBirth }
+                      }));
+                      break;
+                    case 'set_gender':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        demographics: { ...prev.demographics, gender: args.gender }
+                      }));
+                      break;
+                    case 'set_mrn':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        demographics: { ...prev.demographics, mrn: args.mrn }
+                      }));
+                      break;
+                    case 'set_visit_date':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        visitInfo: { ...prev.visitInfo, date: args.date }
+                      }));
+                      break;
+                    case 'set_visit_time':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        visitInfo: { ...prev.visitInfo, time: args.time }
+                      }));
+                      break;
+                    case 'set_visit_type':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        visitInfo: { ...prev.visitInfo, visitType: args.visitType }
+                      }));
+                      break;
+                    case 'set_chief_complaint':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        clinicalInfo: { ...prev.clinicalInfo, chiefComplaint: args.complaint }
+                      }));
+                      break;
+                    case 'set_present_illness':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        clinicalInfo: { ...prev.clinicalInfo, presentIllness: args.illness }
+                      }));
+                      break;
+                    case 'set_review_of_systems':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        clinicalInfo: { ...prev.clinicalInfo, reviewOfSystems: args.systems }
+                      }));
+                      break;
+                    case 'set_physical_exam':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        clinicalInfo: { ...prev.clinicalInfo, physicalExam: args.exam }
+                      }));
+                      break;
+                    case 'set_assessment':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        clinicalInfo: { ...prev.clinicalInfo, assessment: args.assessment }
+                      }));
+                      break;
+                    case 'set_plan':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        clinicalInfo: { ...prev.clinicalInfo, plan: args.plan }
+                      }));
+                      break;
+                    case 'save_note':
+                      await handleSaveNote();
+                      break;
+                    case 'clear_note':
+                      setCurrentNote('');
+                      setCurrentFields({
+                        demographics: {},
+                        visitInfo: {},
+                        clinicalInfo: {},
+                      });
+                      break;
+                    default:
+                      throw new Error(`Unknown function: ${name}`);
+                  }
+
+                  // Send success response
+                  sendSocketMessage(socket, {
+                    type: 'FunctionCallResponse',
+                    id,
+                    name,
+                    content: 'Success'
+                  });
+                }
+              } catch (error) {
+                console.error('Error handling function calls:', error);
+                // Send error response for each failed function
+                for (const func of functions) {
+                  sendSocketMessage(socket, {
+                    type: 'FunctionCallResponse',
+                    id: func.id,
+                    name: func.name,
+                    content: error instanceof Error ? error.message : 'Unknown error'
+                  });
+                }
+              }
+            };
+
+            handleFunctionCalls();
+          }
+        } else {
+          // Handle other types (e.g., Blob) if needed
         }
       } catch (error) {
         console.error('Error handling message:', error);

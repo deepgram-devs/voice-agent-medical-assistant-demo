@@ -89,95 +89,195 @@ export default function DrugDispatch() {
 
     const handleMessage = (event: MessageEvent) => {
       try {
-        const message = JSON.parse(event.data);
-        if (message.type === 'FunctionCallRequest') {
-          const { functions } = message;
+        if (event.data instanceof ArrayBuffer) {
+          const text = new TextDecoder().decode(event.data);
+          try {
+            const message = JSON.parse(text);
+            if (message.type === 'FunctionCallRequest') {
+              const { functions } = message;
 
-          // Handle each function call
-          const handleFunctionCalls = async () => {
-            try {
-              for (const func of functions) {
-                const { id, name, arguments: argsStr } = func;
-                const args = JSON.parse(argsStr);
+              // Handle each function call
+              const handleFunctionCalls = async () => {
+                try {
+                  for (const func of functions) {
+                    const { id, name, arguments: argsStr } = func;
+                    const args = JSON.parse(argsStr);
 
-                switch (name) {
-                  case 'set_patient_name':
-                    setCurrentDispatch(prev => ({
-                      ...prev,
-                      patientName: args.name
-                    }));
-                    break;
-                  case 'set_mrn':
-                    setCurrentDispatch(prev => ({
-                      ...prev,
-                      mrn: args.mrn
-                    }));
-                    break;
-                  case 'set_medication':
-                    setCurrentDispatch(prev => ({
-                      ...prev,
-                      medication: args.medication
-                    }));
-                    break;
-                  case 'set_dosage':
-                    setCurrentDispatch(prev => ({
-                      ...prev,
-                      dosage: args.dosage
-                    }));
-                    break;
-                  case 'set_frequency':
-                    setCurrentDispatch(prev => ({
-                      ...prev,
-                      frequency: args.frequency
-                    }));
-                    break;
-                  case 'set_pharmacy':
-                    setCurrentDispatch(prev => ({
-                      ...prev,
-                      pharmacy: args.pharmacy
-                    }));
-                    break;
-                  case 'dispatch_prescription':
-                    await handleDispatch();
-                    break;
-                  case 'clear_prescription':
-                    setCurrentDispatch({
-                      patientName: '',
-                      mrn: '',
-                      medication: '',
-                      dosage: '',
-                      frequency: '',
-                      pharmacy: '',
-                      status: 'pending'
+                    switch (name) {
+                      case 'set_patient_name':
+                        setCurrentDispatch(prev => ({
+                          ...prev,
+                          patientName: args.name
+                        }));
+                        break;
+                      case 'set_mrn':
+                        setCurrentDispatch(prev => ({
+                          ...prev,
+                          mrn: args.mrn
+                        }));
+                        break;
+                      case 'set_medication':
+                        setCurrentDispatch(prev => ({
+                          ...prev,
+                          medication: args.medication
+                        }));
+                        break;
+                      case 'set_dosage':
+                        setCurrentDispatch(prev => ({
+                          ...prev,
+                          dosage: args.dosage
+                        }));
+                        break;
+                      case 'set_frequency':
+                        setCurrentDispatch(prev => ({
+                          ...prev,
+                          frequency: args.frequency
+                        }));
+                        break;
+                      case 'set_pharmacy':
+                        setCurrentDispatch(prev => ({
+                          ...prev,
+                          pharmacy: args.pharmacy
+                        }));
+                        break;
+                      case 'dispatch_prescription':
+                        await handleDispatch();
+                        break;
+                      case 'clear_prescription':
+                        setCurrentDispatch({
+                          patientName: '',
+                          mrn: '',
+                          medication: '',
+                          dosage: '',
+                          frequency: '',
+                          pharmacy: '',
+                          status: 'pending'
+                        });
+                        break;
+                      default:
+                        throw new Error(`Unknown function: ${name}`);
+                    }
+
+                    // Send success response
+                    sendSocketMessage(socket, {
+                      type: 'FunctionCallResponse',
+                      id,
+                      name,
+                      content: 'Success'
                     });
-                    break;
-                  default:
-                    throw new Error(`Unknown function: ${name}`);
+                  }
+                } catch (error) {
+                  console.error('Error handling function calls:', error);
+                  // Send error response for each failed function
+                  for (const func of functions) {
+                    sendSocketMessage(socket, {
+                      type: 'FunctionCallResponse',
+                      id: func.id,
+                      name: func.name,
+                      content: error instanceof Error ? error.message : 'Unknown error'
+                    });
+                  }
                 }
+              };
 
-                // Send success response
-                sendSocketMessage(socket, {
-                  type: 'FunctionCallResponse',
-                  id,
-                  name,
-                  content: 'Success'
-                });
-              }
-            } catch (error) {
-              console.error('Error handling function calls:', error);
-              // Send error response for each failed function
-              for (const func of functions) {
-                sendSocketMessage(socket, {
-                  type: 'FunctionCallResponse',
-                  id: func.id,
-                  name: func.name,
-                  content: error instanceof Error ? error.message : 'Unknown error'
-                });
-              }
+              handleFunctionCalls();
             }
-          };
+          } catch {
+            // Not JSON, likely audio data: handle or ignore as needed
+          }
+        } else if (typeof event.data === 'string') {
+          const message = JSON.parse(event.data);
+          if (message.type === 'FunctionCallRequest') {
+            const { functions } = message;
 
-          handleFunctionCalls();
+            // Handle each function call
+            const handleFunctionCalls = async () => {
+              try {
+                for (const func of functions) {
+                  const { id, name, arguments: argsStr } = func;
+                  const args = JSON.parse(argsStr);
+
+                  switch (name) {
+                    case 'set_patient_name':
+                      setCurrentDispatch(prev => ({
+                        ...prev,
+                        patientName: args.name
+                      }));
+                      break;
+                    case 'set_mrn':
+                      setCurrentDispatch(prev => ({
+                        ...prev,
+                        mrn: args.mrn
+                      }));
+                      break;
+                    case 'set_medication':
+                      setCurrentDispatch(prev => ({
+                        ...prev,
+                        medication: args.medication
+                      }));
+                      break;
+                    case 'set_dosage':
+                      setCurrentDispatch(prev => ({
+                        ...prev,
+                        dosage: args.dosage
+                      }));
+                      break;
+                    case 'set_frequency':
+                      setCurrentDispatch(prev => ({
+                        ...prev,
+                        frequency: args.frequency
+                      }));
+                      break;
+                    case 'set_pharmacy':
+                      setCurrentDispatch(prev => ({
+                        ...prev,
+                        pharmacy: args.pharmacy
+                      }));
+                      break;
+                    case 'dispatch_prescription':
+                      await handleDispatch();
+                      break;
+                    case 'clear_prescription':
+                      setCurrentDispatch({
+                        patientName: '',
+                        mrn: '',
+                        medication: '',
+                        dosage: '',
+                        frequency: '',
+                        pharmacy: '',
+                        status: 'pending'
+                      });
+                      break;
+                    default:
+                      throw new Error(`Unknown function: ${name}`);
+                  }
+
+                  // Send success response
+                  sendSocketMessage(socket, {
+                    type: 'FunctionCallResponse',
+                    id,
+                    name,
+                    content: 'Success'
+                  });
+                }
+              } catch (error) {
+                console.error('Error handling function calls:', error);
+                // Send error response for each failed function
+                for (const func of functions) {
+                  sendSocketMessage(socket, {
+                    type: 'FunctionCallResponse',
+                    id: func.id,
+                    name: func.name,
+                    content: error instanceof Error ? error.message : 'Unknown error'
+                  });
+                }
+              }
+            };
+
+            handleFunctionCalls();
+          }
+        } else {
+          // Handle other types (e.g., Blob) if needed
         }
       } catch (error) {
         console.error('Error handling message:', error);
