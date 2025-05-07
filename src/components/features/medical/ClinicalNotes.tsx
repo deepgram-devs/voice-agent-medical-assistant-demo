@@ -198,103 +198,275 @@ export default function ClinicalNotes() {
     if (!socket) return;
 
     const handleMessage = (event: MessageEvent) => {
-      if (typeof event.data !== 'string') return;
-
       try {
-        const message = JSON.parse(event.data);
-        if (message.type !== 'FunctionCallRequest') return;
+        if (event.data instanceof ArrayBuffer) {
+          const text = new TextDecoder().decode(event.data);
+          try {
+            const message = JSON.parse(text);
+            if (message.type === 'FunctionCallRequest') {
+              const { functions } = message;
 
-        const { function_name, function_call_id, input } = message;
-        let success = true;
-        let formattedValue = '';
-        const newFields = { ...currentFields };
+              // Handle each function call
+              const handleFunctionCalls = async () => {
+                try {
+                  for (const func of functions) {
+                    const { id, name, arguments: argsStr } = func;
+                    const args = JSON.parse(argsStr);
 
-        switch (function_name) {
-          case 'set_patient_name':
-            newFields.demographics.patientName = input.name;
-            formattedValue = `Patient Name: ${input.name}\n`;
-            break;
-          case 'set_date_of_birth':
-            newFields.demographics.dateOfBirth = input.dateOfBirth;
-            formattedValue = `Date of Birth: ${input.dateOfBirth}\n`;
-            break;
-          case 'set_gender':
-            newFields.demographics.gender = input.gender;
-            formattedValue = `Gender: ${input.gender}\n`;
-            break;
-          case 'set_mrn':
-            newFields.demographics.medicalRecordNumber = input.mrn;
-            formattedValue = `Medical Record Number: ${input.mrn}\n`;
-            break;
-          case 'set_visit_date':
-            newFields.visitInfo.dateOfVisit = input.date;
-            formattedValue = `Visit Date: ${input.date}\n`;
-            break;
-          case 'set_visit_time':
-            newFields.visitInfo.timeOfVisit = input.time;
-            formattedValue = `Visit Time: ${input.time}\n`;
-            break;
-          case 'set_visit_type':
-            newFields.visitInfo.visitType = input.visitType;
-            formattedValue = `Visit Type: ${input.visitType}\n`;
-            break;
-          case 'set_provider_name':
-            newFields.visitInfo.providerName = input.provider;
-            formattedValue = `Provider: ${input.provider}\n`;
-            break;
-          case 'set_chief_complaint':
-            newFields.clinicalInfo.chiefComplaint = input.complaint;
-            formattedValue = `Chief Complaint: ${input.complaint}\n`;
-            break;
-          case 'set_present_illness':
-            newFields.clinicalInfo.presentIllness = input.illness;
-            formattedValue = `Present Illness: ${input.illness}\n`;
-            break;
-          case 'set_review_of_systems':
-            newFields.clinicalInfo.reviewOfSystems = input.systems;
-            formattedValue = `Review of Systems: ${input.systems}\n`;
-            break;
-          case 'set_physical_exam':
-            newFields.clinicalInfo.physicalExam = input.exam;
-            formattedValue = `Physical Examination: ${input.exam}\n`;
-            break;
-          case 'set_assessment':
-            newFields.clinicalInfo.assessment = input.assessment;
-            formattedValue = `Assessment: ${input.assessment}\n`;
-            break;
-          case 'set_plan':
-            newFields.clinicalInfo.plan = input.plan;
-            formattedValue = `Plan: ${input.plan}\n`;
-            break;
-          case 'other_notes':
-            formattedValue = `Other Notes: ${input.notes}\n`;
-            break;
-          case 'save_note':
-            handleSaveNote();
-            break;
-          case 'clear_note':
-            setCurrentFields({
-              demographics: {},
-              visitInfo: {},
-              clinicalInfo: {},
-            });
-            setCurrentNote('');
-            break;
-          default:
-            success = false;
-            break;
+                    switch (name) {
+                      case 'set_patient_name':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          demographics: { ...prev.demographics, name: args.name }
+                        }));
+                        break;
+                      case 'set_date':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          demographics: { ...prev.demographics, dateOfBirth: args.dateOfBirth }
+                        }));
+                        break;
+                      case 'set_gender':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          demographics: { ...prev.demographics, gender: args.gender }
+                        }));
+                        break;
+                      case 'set_mrn':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          demographics: { ...prev.demographics, mrn: args.mrn }
+                        }));
+                        break;
+                      case 'set_visit_date':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          visitInfo: { ...prev.visitInfo, date: args.date }
+                        }));
+                        break;
+                      case 'set_visit_time':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          visitInfo: { ...prev.visitInfo, time: args.time }
+                        }));
+                        break;
+                      case 'set_visit_type':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          visitInfo: { ...prev.visitInfo, visitType: args.visitType }
+                        }));
+                        break;
+                      case 'set_chief_complaint':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          clinicalInfo: { ...prev.clinicalInfo, chiefComplaint: args.complaint }
+                        }));
+                        break;
+                      case 'set_present_illness':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          clinicalInfo: { ...prev.clinicalInfo, presentIllness: args.illness }
+                        }));
+                        break;
+                      case 'set_review_of_systems':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          clinicalInfo: { ...prev.clinicalInfo, reviewOfSystems: args.systems }
+                        }));
+                        break;
+                      case 'set_physical_exam':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          clinicalInfo: { ...prev.clinicalInfo, physicalExam: args.exam }
+                        }));
+                        break;
+                      case 'set_assessment':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          clinicalInfo: { ...prev.clinicalInfo, assessment: args.assessment }
+                        }));
+                        break;
+                      case 'set_plan':
+                        setCurrentFields(prev => ({
+                          ...prev,
+                          clinicalInfo: { ...prev.clinicalInfo, plan: args.plan }
+                        }));
+                        break;
+                      case 'save_note':
+                        await handleSaveNote();
+                        break;
+                      case 'clear_note':
+                        setCurrentNote('');
+                        setCurrentFields({
+                          demographics: {},
+                          visitInfo: {},
+                          clinicalInfo: {},
+                        });
+                        break;
+                      default:
+                        throw new Error(`Unknown function: ${name}`);
+                    }
+
+                    // Send success response
+                    sendSocketMessage(socket, {
+                      type: 'FunctionCallResponse',
+                      id,
+                      name,
+                      content: 'Success'
+                    });
+                  }
+                } catch (error) {
+                  console.error('Error handling function calls:', error);
+                  // Send error response for each failed function
+                  for (const func of functions) {
+                    sendSocketMessage(socket, {
+                      type: 'FunctionCallResponse',
+                      id: func.id,
+                      name: func.name,
+                      content: error instanceof Error ? error.message : 'Unknown error'
+                    });
+                  }
+                }
+              };
+
+              handleFunctionCalls();
+            }
+          } catch {
+            // Not JSON, likely audio data: handle or ignore as needed
+          }
+        } else if (typeof event.data === 'string') {
+          const message = JSON.parse(event.data);
+          if (message.type === 'FunctionCallRequest') {
+            const { functions } = message;
+
+            // Handle each function call
+            const handleFunctionCalls = async () => {
+              try {
+                for (const func of functions) {
+                  const { id, name, arguments: argsStr } = func;
+                  const args = JSON.parse(argsStr);
+
+                  switch (name) {
+                    case 'set_patient_name':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        demographics: { ...prev.demographics, name: args.name }
+                      }));
+                      break;
+                    case 'set_date':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        demographics: { ...prev.demographics, dateOfBirth: args.dateOfBirth }
+                      }));
+                      break;
+                    case 'set_gender':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        demographics: { ...prev.demographics, gender: args.gender }
+                      }));
+                      break;
+                    case 'set_mrn':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        demographics: { ...prev.demographics, mrn: args.mrn }
+                      }));
+                      break;
+                    case 'set_visit_date':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        visitInfo: { ...prev.visitInfo, date: args.date }
+                      }));
+                      break;
+                    case 'set_visit_time':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        visitInfo: { ...prev.visitInfo, time: args.time }
+                      }));
+                      break;
+                    case 'set_visit_type':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        visitInfo: { ...prev.visitInfo, visitType: args.visitType }
+                      }));
+                      break;
+                    case 'set_chief_complaint':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        clinicalInfo: { ...prev.clinicalInfo, chiefComplaint: args.complaint }
+                      }));
+                      break;
+                    case 'set_present_illness':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        clinicalInfo: { ...prev.clinicalInfo, presentIllness: args.illness }
+                      }));
+                      break;
+                    case 'set_review_of_systems':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        clinicalInfo: { ...prev.clinicalInfo, reviewOfSystems: args.systems }
+                      }));
+                      break;
+                    case 'set_physical_exam':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        clinicalInfo: { ...prev.clinicalInfo, physicalExam: args.exam }
+                      }));
+                      break;
+                    case 'set_assessment':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        clinicalInfo: { ...prev.clinicalInfo, assessment: args.assessment }
+                      }));
+                      break;
+                    case 'set_plan':
+                      setCurrentFields(prev => ({
+                        ...prev,
+                        clinicalInfo: { ...prev.clinicalInfo, plan: args.plan }
+                      }));
+                      break;
+                    case 'save_note':
+                      await handleSaveNote();
+                      break;
+                    case 'clear_note':
+                      setCurrentNote('');
+                      setCurrentFields({
+                        demographics: {},
+                        visitInfo: {},
+                        clinicalInfo: {},
+                      });
+                      break;
+                    default:
+                      throw new Error(`Unknown function: ${name}`);
+                  }
+
+                  // Send success response
+                  sendSocketMessage(socket, {
+                    type: 'FunctionCallResponse',
+                    id,
+                    name,
+                    content: 'Success'
+                  });
+                }
+              } catch (error) {
+                console.error('Error handling function calls:', error);
+                // Send error response for each failed function
+                for (const func of functions) {
+                  sendSocketMessage(socket, {
+                    type: 'FunctionCallResponse',
+                    id: func.id,
+                    name: func.name,
+                    content: error instanceof Error ? error.message : 'Unknown error'
+                  });
+                }
+              }
+            };
+
+            handleFunctionCalls();
+          }
+        } else {
+          // Handle other types (e.g., Blob) if needed
         }
-
-        if (formattedValue) {
-          setCurrentNote(prev => prev + formattedValue);
-          setCurrentFields(newFields);
-        }
-
-        sendSocketMessage(socket, {
-          type: "FunctionCallResponse",
-          function_call_id,
-          output: success ? "success" : "error"
-        });
       } catch (error) {
         console.error('Error handling message:', error);
       }
@@ -302,7 +474,7 @@ export default function ClinicalNotes() {
 
     socket.addEventListener('message', handleMessage);
     return () => socket.removeEventListener('message', handleMessage);
-  }, [socket, currentFields, handleSaveNote]);
+  }, [socket, handleSaveNote]);
 
   return (
     <div className="space-y-4">

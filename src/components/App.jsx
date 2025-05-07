@@ -99,16 +99,30 @@ export const App = ({
     console.log('Microphone state changed:', { microphoneState, hasSocket: !!socket, hasConfig: !!defaultStsConfig });
     if (microphoneState === 1 && socket && defaultStsConfig) {
       const onOpen = () => {
-        console.log('Socket opened - starting microphone');
-        const combinedStsConfig = applyParamsToConfig(defaultStsConfig);
+        console.log('Socket opened - sending Settings message');
+        const combinedStsConfig = {
+          ...defaultStsConfig,
+          agent: {
+            ...defaultStsConfig.agent,
+            think: {
+              ...defaultStsConfig.agent.think,
+              prompt: `${defaultStsConfig.agent.think.prompt}\n${instructions}`,
+            },
+          },
+        };
         sendSocketMessage(socket, combinedStsConfig);
-        startMicrophone();
-        if (isRootPath) {
-          startSpeaking(true);
-          isWaitingForUserVoiceAfterSleep.current = false;
-        } else {
-          startListening(true);
-        }
+
+        // Wait for Settings to be processed before starting microphone
+        setTimeout(() => {
+          console.log('Starting microphone after Settings sent');
+          startMicrophone();
+          if (isRootPath) {
+            startSpeaking(true);
+            isWaitingForUserVoiceAfterSleep.current = false;
+          } else {
+            startListening(true);
+          }
+        }, 1000); // Give a small delay to ensure Settings is processed
       };
 
       socket.addEventListener("open", onOpen);
@@ -130,8 +144,15 @@ export const App = ({
     if (!socket) return;
     if (microphoneState !== 2) return;
     if (socketState !== 1) return;
-    console.log('Setting up audio processor');
-    processor.onaudioprocess = sendMicToSocket(socket);
+
+    // Only set up audio processor after Settings has been sent
+    const setupProcessor = () => {
+      console.log('Setting up audio processor');
+      processor.onaudioprocess = sendMicToSocket(socket);
+    };
+
+    // Add a small delay to ensure Settings is processed
+    setTimeout(setupProcessor, 1500);
   }, [microphone, socket, microphoneState, socketState, processor]);
 
   /**
@@ -209,14 +230,17 @@ export const App = ({
     }
   }, [voice, socket, socketState, previousVoice]);
 
-  useEffect(() => {
-    if (previousInstructions !== instructions && socket && socketState === 1) {
-      sendSocketMessage(socket, {
-        type: "UpdateInstructions",
-        instructions: `${defaultStsConfig.agent.think.instructions}\n${instructions}`,
-      });
-    }
-  }, [defaultStsConfig, previousInstructions, instructions, socket, socketState]);
+  const handleUpdateInstructions = useCallback(
+    (instructions) => {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        sendSocketMessage(socket, {
+          type: "UpdateInstructions",
+          prompt: `${defaultStsConfig.agent.think.prompt}\n${instructions}`,
+        });
+      }
+    },
+    [socket, defaultStsConfig]
+  );
 
   /**
    * Manage responses to incoming data from WebSocket.

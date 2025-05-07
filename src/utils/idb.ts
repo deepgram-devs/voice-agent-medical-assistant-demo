@@ -43,12 +43,13 @@ interface DrugDispatchRecord {
 interface Appointment {
   id: string;
   timestamp: Date;
-  type: string;
-  duration: number;
-  notes: string;
-  status: 'scheduled' | 'completed' | 'cancelled';
   patientName: string;
   mrn: string;
+  date: string;
+  time: string;
+  provider: string;
+  reason: string;
+  status: 'pending' | 'scheduled' | 'cancelled';
 }
 
 interface MedicalDB extends DBSchema {
@@ -211,12 +212,13 @@ const defaultDrugDispatch: DrugDispatchRecord = {
 const defaultAppointment: Appointment = {
   id: 'default-appointment',
   timestamp: new Date('2025-02-21T17:40:00'),
-  type: 'Checkup',
-  duration: 30,
-  notes: 'Patient thinks they have the Flu',
-  status: 'scheduled',
   patientName: 'Jim Bloggs',
-  mrn: 'C654821'
+  mrn: 'C654821',
+  date: '2025-02-21',
+  time: '17:40',
+  provider: 'Dr. Smith',
+  reason: 'Follow-up consultation',
+  status: 'scheduled'
 };
 
 export async function checkAndAddDefaultItems() {
@@ -230,13 +232,13 @@ export async function checkAndAddDefaultItems() {
     if (clinicalNotes.length === 0 && drugDispatches.length === 0 && appointments.length === 0) {
       // Add default clinical note
       await addClinicalNote(defaultClinicalNote);
-      
+
       // Add default drug dispatch
       await addDrugDispatch(defaultDrugDispatch);
-      
+
       // Add default appointment
       await addAppointment(defaultAppointment);
-      
+
       console.log('Added default items to all stores');
     }
   } catch (error) {
@@ -245,4 +247,4 @@ export async function checkAndAddDefaultItems() {
 }
 
 // Export types for use in components
-export type { ClinicalNote, DrugDispatchRecord, Appointment }; 
+export type { ClinicalNote, DrugDispatchRecord, Appointment };

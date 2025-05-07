@@ -1,9 +1,8 @@
-import { availableVoices } from "app/lib/constants";
-import type { Voice } from "../../utils/deepgramUtils";
-import Image from "next/image";
+import { availableVoices } from "../../../../lib/constants";
+import type { Voice } from "../../../../utils/deepgramUtils";
 import { useEffect, useState, type FC, type MouseEventHandler } from "react";
 import styles from "./VoiceSelector.module.scss";
-import { useStsQueryParams } from "app/hooks/UseStsQueryParams";
+import { useStsQueryParams } from "../../../../hooks/UseStsQueryParams";
 
 const ANIMATION_DURATION = 200;
 
@@ -31,7 +30,7 @@ const VoiceSelector: FC<Props> = ({ className = "", showLabel, collapsible }) =>
 
   useEffect(() => {
     if (!isOpen && collapsible && voice !== sortedVoices[0]?.canonical_name) {
-      const selectedVoiceIndex = availableVoices.findIndex((v) => v.canonical_name === voice);
+      const selectedVoiceIndex = availableVoices.findIndex((v: Voice) => v.canonical_name === voice);
       const selectedVoice = availableVoices[selectedVoiceIndex];
       const sorted = [...availableVoices];
       if (selectedVoiceIndex >= 0 && selectedVoice) {
@@ -83,8 +82,8 @@ const VoiceSelector: FC<Props> = ({ className = "", showLabel, collapsible }) =>
             style={
               collapsible && isOpen
                 ? {
-                    paddingLeft: i * 40,
-                  }
+                  paddingLeft: i * 40,
+                }
                 : {}
             }
           >
@@ -93,21 +92,19 @@ const VoiceSelector: FC<Props> = ({ className = "", showLabel, collapsible }) =>
               onClick={handleVoiceIconClick}
               value={voice.canonical_name}
               style={
-                // Border is hidden for unselected hidden voices to prevent the border height from impacting the close/open transitions
                 !collapsible || isOpen || isSelected(voice)
                   ? {
-                      border: `2px solid ${voice.metadata.color}`,
-                    }
+                    border: `2px solid ${voice.metadata.color}`,
+                  }
                   : {}
               }
             >
-              <Image
+              <img
                 src={voice.metadata.image}
                 alt={voice.name}
                 width={80}
                 height={80}
                 className="rounded-full object-scale-down"
-                priority
               />
             </button>
 
@@ -119,6 +116,9 @@ const VoiceSelector: FC<Props> = ({ className = "", showLabel, collapsible }) =>
               <span className="whitespace-nowrap text-gray-450 md:text-gray-25">
                 <span className="capitalize">{voice.metadata.accent}</span>{" "}
                 <span className="lowercase">{voice.metadata.gender}</span>
+                <span className="ml-2 text-xs text-gray-500">
+                  ({voice.provider.type})
+                </span>
               </span>
             </div>
           </li>

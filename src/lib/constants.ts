@@ -13,36 +13,187 @@ const audioConfig: AudioConfig = {
   },
 };
 
-const baseConfig = {
-  type: "SettingsConfiguration",
-  audio: audioConfig,
-  agent: {
-    listen: { model: "46658e06-4884-4582-9bc2-e92ef7baa396" },
-    speak: { model: "aura-2-speaker-45" },
-    think: {
-      provider: { type: "open_ai" },
-      model: "gpt-4o",
-    },
+// Update function definitions to include required properties
+const functionDefinitions = [
+  {
+    name: "set_patient_name",
+    description: "Set the patient's name for the appointment",
+    parameters: {
+      type: "object",
+      properties: {
+        name: {
+          type: "string",
+          description: "The patient's full name"
+        }
+      },
+      required: ["name"]
+    }
   },
+  {
+    name: "set_mrn",
+    description: "Set the patient's Medical Record Number (MRN)",
+    parameters: {
+      type: "object",
+      properties: {
+        mrn: {
+          type: "string",
+          description: "The patient's Medical Record Number"
+        }
+      },
+      required: ["mrn"]
+    }
+  },
+  {
+    name: "set_date",
+    description: "Set the date for the appointment",
+    parameters: {
+      type: "object",
+      properties: {
+        date: {
+          type: "string",
+          description: "The date of the appointment in YYYY-MM-DD format"
+        }
+      },
+      required: ["date"]
+    }
+  },
+  {
+    name: "set_time",
+    description: "Set the time for the appointment",
+    parameters: {
+      type: "object",
+      properties: {
+        time: {
+          type: "string",
+          description: "The time of the appointment in HH:MM format"
+        }
+      },
+      required: ["time"]
+    }
+  },
+  {
+    name: "set_provider",
+    description: "Set the healthcare provider for the appointment",
+    parameters: {
+      type: "object",
+      properties: {
+        provider: {
+          type: "string",
+          description: "The name of the healthcare provider"
+        }
+      },
+      required: ["provider"]
+    }
+  },
+  {
+    name: "set_reason",
+    description: "Set the reason for the appointment",
+    parameters: {
+      type: "object",
+      properties: {
+        reason: {
+          type: "string",
+          description: "The reason for the appointment"
+        }
+      },
+      required: ["reason"]
+    }
+  },
+  {
+    name: "schedule_appointment",
+    description: "Schedule the current appointment",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: []
+    }
+  },
+  {
+    name: "clear_appointment",
+    description: "Clear the current appointment form",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: []
+    }
+  }
+];
+
+const baseConfig = {
+  type: "Settings",
+  experimental: false,
+  mip_opt_out: false,
+  audio: {
+    input: {
+      encoding: "linear16",
+      sample_rate: 16000
+    },
+    output: {
+      encoding: "linear16",
+      sample_rate: 24000,
+      container: "none"
+    }
+  },
+  agent: {
+    language: "en",
+    listen: {
+      provider: {
+        type: "deepgram",
+        model: "nova-3-medical"
+      }
+    },
+    think: {
+      provider: {
+        type: "open_ai",
+        model: "gpt-4",
+        temperature: 0.7
+      },
+      prompt: "You are a helpful medical assistant focused on patient care. You can help with clinical notes, drug dispatch, and scheduling appointments.",
+      functions: functionDefinitions
+    },
+    speak: {
+      provider: {
+        type: "deepgram",
+        model: "aura-2-thalia-en"
+      }
+    },
+    greeting: "Hello! I'm your medical assistant. I can help you with clinical notes, drug dispatch, and scheduling appointments. How can I assist you today?"
+  }
 };
 
+// Update the stsConfig to use the function definitions
 export const stsConfig: StsConfig = {
-  ...baseConfig,
-  context: {
-    messages: [
-      {
-        role: "assistant",
-        content: "Hi I am Aura, your Medical Assistant! Which task would you like to start with?"
-      },
-    ],
-    replay: true,
+  type: "Settings",
+  experimental: false,
+  mip_opt_out: false,
+  audio: {
+    input: {
+      encoding: "linear16",
+      sample_rate: 16000
+    },
+    output: {
+      encoding: "linear16",
+      sample_rate: 24000,
+      container: "none"
+    }
   },
   agent: {
-    ...baseConfig.agent,
+    language: "en",
+    listen: {
+      provider: {
+        type: "deepgram",
+        model: "nova-3-medical"
+      }
+    },
     think: {
-      ...baseConfig.agent.think,
-      provider: { type: "open_ai", fallback_to_groq: false },
-      instructions: `${clinicalNotesPrompt}
+      provider: {
+        type: "open_ai",
+        model: "gpt-4o-mini",
+        temperature: 0.7
+      },
+      prompt: `You are a helpful medical assistant focused on patient care.
+
+${clinicalNotesPrompt}
 
 Mode Switching Instructions:
 When user says "Start Clinical Note" or switches to Clinical Notes mode:
@@ -66,413 +217,16 @@ IMPORTANT: When switching modes:
 3. Follow mode-specific prompt exactly
 4. Keep responses brief and direct
 5. NO welcome messages or explanations when starting new mode`,
-      functions: [
-        // Demographics Functions
-        {
-          name: "set_patient_name",
-          description: "Set the patient's name in the clinical note",
-          parameters: {
-            type: "object",
-            properties: {
-              name: {
-                type: "string",
-                description: "The patient's full name"
-              }
-            },
-            required: ["name"]
-          }
-        },
-        {
-          name: "set_date_of_birth",
-          description: "Set the patient's date of birth in the clinical note",
-          parameters: {
-            type: "object",
-            properties: {
-              dateOfBirth: {
-                type: "string",
-                description: "Patient's date of birth in MM/DD/YYYY format"
-              }
-            },
-            required: ["dateOfBirth"]
-          }
-        },
-        {
-          name: "set_gender",
-          description: "Set the patient's gender in the clinical note",
-          parameters: {
-            type: "object",
-            properties: {
-              gender: {
-                type: "string",
-                description: "Patient's gender"
-              }
-            },
-            required: ["gender"]
-          }
-        },
-        {
-          name: "set_mrn",
-          description: "Set the patient's medical record number in the clinical note",
-          parameters: {
-            type: "object",
-            properties: {
-              mrn: {
-                type: "string",
-                description: "Patient's medical record number (MRN)"
-              }
-            },
-            required: ["mrn"]
-          }
-        },
-        // Visit Information Functions
-        {
-          name: "set_visit_date",
-          description: "Set the date of visit in the clinical note",
-          parameters: {
-            type: "object",
-            properties: {
-              date: {
-                type: "string",
-                description: "Date of visit in MM/DD/YYYY format"
-              }
-            },
-            required: ["date"]
-          }
-        },
-        {
-          name: "set_visit_time",
-          description: "Set the time of visit in the clinical note",
-          parameters: {
-            type: "object",
-            properties: {
-              time: {
-                type: "string",
-                description: "Time of visit in HH:MM format"
-              }
-            },
-            required: ["time"]
-          }
-        },
-        {
-          name: "set_visit_type",
-          description: "Set the type of visit in the clinical note",
-          parameters: {
-            type: "object",
-            properties: {
-              visitType: {
-                type: "string",
-                description: "Type of visit (e.g., Initial, Follow-up, Emergency)"
-              }
-            },
-            required: ["visitType"]
-          }
-        },
-        {
-          name: "set_provider_name",
-          description: "Set the provider's name in the clinical note",
-          parameters: {
-            type: "object",
-            properties: {
-              provider: {
-                type: "string",
-                description: "Name of the healthcare provider"
-              }
-            },
-            required: ["provider"]
-          }
-        },
-        // Clinical Information Functions
-        {
-          name: "set_chief_complaint",
-          description: "Set the chief complaint in the clinical note",
-          parameters: {
-            type: "object",
-            properties: {
-              complaint: {
-                type: "string",
-                description: "Patient's main complaint or reason for visit"
-              }
-            },
-            required: ["complaint"]
-          }
-        },
-        {
-          name: "set_present_illness",
-          description: "Set the present illness history in the clinical note",
-          parameters: {
-            type: "object",
-            properties: {
-              illness: {
-                type: "string",
-                description: "History of present illness"
-              }
-            },
-            required: ["illness"]
-          }
-        },
-        {
-          name: "set_review_of_systems",
-          description: "Set the review of systems in the clinical note",
-          parameters: {
-            type: "object",
-            properties: {
-              systems: {
-                type: "string",
-                description: "Review of systems findings"
-              }
-            },
-            required: ["systems"]
-          }
-        },
-        {
-          name: "set_physical_exam",
-          description: "Set the physical examination findings in the clinical note",
-          parameters: {
-            type: "object",
-            properties: {
-              exam: {
-                type: "string",
-                description: "Physical examination findings"
-              }
-            },
-            required: ["exam"]
-          }
-        },
-        {
-          name: "set_assessment",
-          description: "Set the assessment in the clinical note",
-          parameters: {
-            type: "object",
-            properties: {
-              assessment: {
-                type: "string",
-                description: "Clinical assessment or diagnosis"
-              }
-            },
-            required: ["assessment"]
-          }
-        },
-        {
-          name: "set_plan",
-          description: "Set the treatment plan in the clinical note",
-          parameters: {
-            type: "object",
-            properties: {
-              plan: {
-                type: "string",
-                description: "Treatment plan and recommendations"
-              }
-            },
-            required: ["plan"]
-          }
-        },
-        {
-          name: "other_notes",
-          description: "Add additional notes that don't fit into other categories",
-          parameters: {
-            type: "object",
-            properties: {
-              notes: {
-                type: "string",
-                description: "Additional notes or information"
-              }
-            },
-            required: ["notes"]
-          }
-        },
-        {
-          name: "save_note",
-          description: "Save the current clinical note",
-          parameters: {
-            type: "object",
-            properties: {}
-          }
-        },
-        {
-          name: "clear_note",
-          description: "Clear the current clinical note",
-          parameters: {
-            type: "object",
-            properties: {}
-          }
-        },
-        // Drug Dispatch Functions
-        {
-          name: "set_medication",
-          description: "Set the medication name for the prescription",
-          parameters: {
-            type: "object",
-            required: ["medication"],
-            properties: {
-              medication: {
-                type: "string",
-                description: "The name of the medication"
-              }
-            }
-          }
-        },
-        {
-          name: "set_dosage",
-          description: "Set the dosage for the prescription",
-          parameters: {
-            type: "object",
-            required: ["dosage"],
-            properties: {
-              dosage: {
-                type: "string",
-                description: "The dosage of the medication"
-              }
-            }
-          }
-        },
-        {
-          name: "set_frequency",
-          description: "Set the frequency for the prescription",
-          parameters: {
-            type: "object",
-            required: ["frequency"],
-            properties: {
-              frequency: {
-                type: "string",
-                description: "How often the medication should be taken"
-              }
-            }
-          }
-        },
-        {
-          name: "set_pharmacy",
-          description: "Set the pharmacy for the prescription",
-          parameters: {
-            type: "object",
-            required: ["pharmacy"],
-            properties: {
-              pharmacy: {
-                type: "string",
-                description: "The name or location of the pharmacy"
-              }
-            }
-          }
-        },
-        {
-          name: "dispatch_prescription",
-          description: "Dispatch the current prescription",
-          parameters: {
-            type: "object",
-            properties: {}
-          }
-        },
-        {
-          name: "clear_prescription",
-          description: "Clear the current prescription form",
-          parameters: {
-            type: "object",
-            properties: {}
-          }
-        },
-        {
-          name: "set_patient_name",
-          description: "Set the patient name for the prescription",
-          parameters: {
-            type: "object",
-            required: ["name"],
-            properties: {
-              name: {
-                type: "string",
-                description: "The patient's full name"
-              }
-            }
-          }
-        },
-        {
-          name: "set_mrn",
-          description: "Set the patient medical record number for the prescription",
-          parameters: {
-            type: "object",
-            required: ["mrn"],
-            properties: {
-              mrn: {
-                type: "string",
-                description: "The patient's medical record number (MRN)"
-              }
-            }
-          }
-        },
-        // Scheduling Functions
-        {
-          name: "set_appointment_type",
-          description: "Set the type of appointment",
-          parameters: {
-            type: "object",
-            required: ["type"],
-            properties: {
-              type: {
-                type: "string",
-                description: "The type of appointment (e.g., Follow-up, Initial Consultation, etc.)"
-              }
-            }
-          }
-        },
-        {
-          name: "set_appointment_datetime",
-          description: "Set the date and time for the appointment",
-          parameters: {
-            type: "object",
-            required: ["datetime"],
-            properties: {
-              datetime: {
-                type: "string",
-                description: "The date and time of the appointment in ISO format"
-              }
-            }
-          }
-        },
-        {
-          name: "set_appointment_duration",
-          description: "Set the duration of the appointment (minimum 30 minutes)",
-          parameters: {
-            type: "object",
-            required: ["duration"],
-            properties: {
-              duration: {
-                type: "integer",
-                description: "The duration of the appointment in minutes (minimum 30)"
-              }
-            }
-          }
-        },
-        {
-          name: "set_appointment_notes",
-          description: "Set any notes for the appointment",
-          parameters: {
-            type: "object",
-            required: ["notes"],
-            properties: {
-              notes: {
-                type: "string",
-                description: "Any additional notes for the appointment"
-              }
-            }
-          }
-        },
-        {
-          name: "schedule_appointment",
-          description: "Schedule the current appointment",
-          parameters: {
-            type: "object",
-            properties: {}
-          }
-        },
-        {
-          name: "clear_appointment",
-          description: "Clear the current appointment form",
-          parameters: {
-            type: "object",
-            properties: {}
-          }
-        },
-      ],
+      functions: functionDefinitions
     },
-  },
+    speak: {
+      provider: {
+        type: "deepgram",
+        model: "aura-2-thalia-en"
+      }
+    },
+    greeting: "Hello! I'm your medical assistant. I can help you with clinical notes, drug dispatch, and scheduling appointments. How can I assist you today?"
+  }
 };
 
 // Drive-thru constants
@@ -515,7 +269,11 @@ export const driveThruStsConfig = (id: string, menu: string): StsConfig => ({
           name: "get_order",
           description:
             "Gets the order, including all items and their prices. Use this function when cross-checking things like the total cost of the order, or items included in the order.",
-          parameters: {},
+          parameters: {
+            type: "object",
+            properties: {},
+            required: [],
+          },
         },
         {
           name: "remove_item_from_order",
@@ -537,7 +295,11 @@ export const driveThruStsConfig = (id: string, menu: string): StsConfig => ({
           name: "get_menu",
           description:
             "Gets the menu, including all items and their price and description. Use this function at the beginning of the call and use it to reference what items are available and information about them",
-          parameters: {},
+          parameters: {
+            type: "object",
+            properties: {},
+            required: [],
+          },
         },
       ],
     },
@@ -617,6 +379,10 @@ export const driveThruMenu = [
 const voiceAsteria: Voice = {
   name: "Asteria",
   canonical_name: "aura-2-speaker-45",
+  provider: {
+    type: "deepgram",
+    model: "aura-2-speaker-45"
+  },
   metadata: {
     accent: "American",
     gender: "Female",
@@ -628,6 +394,10 @@ const voiceAsteria: Voice = {
 const voiceOrion: Voice = {
   name: "Orion",
   canonical_name: "aura-2-speaker-31",
+  provider: {
+    type: "deepgram",
+    model: "aura-2-speaker-31"
+  },
   metadata: {
     accent: "American",
     gender: "Male",
@@ -640,6 +410,10 @@ const voiceOrion: Voice = {
 const voiceLuna: Voice = {
   name: "Luna",
   canonical_name: "aura-2-speaker-180",
+  provider: {
+    type: "deepgram",
+    model: "aura-2-speaker-180"
+  },
   metadata: {
     accent: "American",
     gender: "Female",
@@ -652,6 +426,10 @@ const voiceLuna: Voice = {
 const voiceArcas: Voice = {
   name: "Arcas",
   canonical_name: "aura-2-speaker-225",
+  provider: {
+    type: "deepgram",
+    model: "aura-2-speaker-225"
+  },
   metadata: {
     accent: "American",
     gender: "Male",
@@ -662,13 +440,54 @@ const voiceArcas: Voice = {
 };
 
 type NonEmptyArray<T> = [T, ...T[]];
-export const availableVoices: NonEmptyArray<Voice> = [
-  voiceAsteria,
-  voiceOrion,
-  voiceLuna,
-  voiceArcas,
+export const availableVoices: Voice[] = [
+  {
+    name: "Thalia",
+    canonical_name: "aura-2-thalia-en",
+    provider: {
+      type: "deepgram",
+      model: "aura-2-thalia-en"
+    },
+    metadata: {
+      accent: "American",
+      gender: "female",
+      image: "/voices/thalia.png",
+      color: "#FF6B6B",
+      sample: "/samples/thalia.mp3"
+    }
+  },
+  {
+    name: "Nova",
+    canonical_name: "nova-3-medical",
+    provider: {
+      type: "deepgram",
+      model: "nova-3-medical"
+    },
+    metadata: {
+      accent: "American",
+      gender: "female",
+      image: "/voices/nova.png",
+      color: "#4ECDC4",
+      sample: "/samples/nova.mp3"
+    }
+  },
+  {
+    name: "Eleven",
+    canonical_name: "eleven-english-v1",
+    provider: {
+      type: "elevenlabs",
+      model: "eleven-english-v1"
+    },
+    metadata: {
+      accent: "American",
+      gender: "female",
+      image: "/voices/eleven.png",
+      color: "#45B7D1",
+      sample: "/samples/eleven.mp3"
+    }
+  }
 ];
-export const defaultVoice: Voice = availableVoices[0];
+export const defaultVoice: Voice = availableVoices[0]!;
 
 export const sharedOpenGraphMetadata = {
   title: "Voice Agent | Deepgram",
@@ -794,13 +613,13 @@ export const drugDispatchFunctions = [
     description: 'Set the patient name for the prescription',
     parameters: {
       type: 'object',
-      required: ['name'],
       properties: {
         name: {
           type: 'string',
           description: 'The patient\'s full name'
         }
-      }
+      },
+      required: ['name']
     }
   },
   {
@@ -808,13 +627,13 @@ export const drugDispatchFunctions = [
     description: 'Set the patient medical record number for the prescription',
     parameters: {
       type: 'object',
-      required: ['mrn'],
       properties: {
         mrn: {
           type: 'string',
           description: 'The patient\'s medical record number (MRN)'
         }
-      }
+      },
+      required: ['mrn']
     }
   },
   {
@@ -822,13 +641,13 @@ export const drugDispatchFunctions = [
     description: 'Set the medication name for the prescription',
     parameters: {
       type: 'object',
-      required: ['medication'],
       properties: {
         medication: {
           type: 'string',
           description: 'The name of the medication'
         }
-      }
+      },
+      required: ['medication']
     }
   },
   {
@@ -836,13 +655,13 @@ export const drugDispatchFunctions = [
     description: 'Set the dosage for the prescription',
     parameters: {
       type: 'object',
-      required: ['dosage'],
       properties: {
         dosage: {
           type: 'string',
           description: 'The dosage of the medication'
         }
-      }
+      },
+      required: ['dosage']
     }
   },
   {
@@ -850,13 +669,13 @@ export const drugDispatchFunctions = [
     description: 'Set the frequency for the prescription',
     parameters: {
       type: 'object',
-      required: ['frequency'],
       properties: {
         frequency: {
           type: 'string',
           description: 'How often the medication should be taken'
         }
-      }
+      },
+      required: ['frequency']
     }
   },
   {
@@ -864,13 +683,13 @@ export const drugDispatchFunctions = [
     description: 'Set the pharmacy for the prescription',
     parameters: {
       type: 'object',
-      required: ['pharmacy'],
       properties: {
         pharmacy: {
           type: 'string',
           description: 'The name or location of the pharmacy'
         }
-      }
+      },
+      required: ['pharmacy']
     }
   },
   {
@@ -878,7 +697,8 @@ export const drugDispatchFunctions = [
     description: 'Dispatch the current prescription',
     parameters: {
       type: 'object',
-      properties: {}
+      properties: {},
+      required: []
     }
   },
   {
@@ -886,7 +706,8 @@ export const drugDispatchFunctions = [
     description: 'Clear the current prescription form',
     parameters: {
       type: 'object',
-      properties: {}
+      properties: {},
+      required: []
     }
   }
 ];

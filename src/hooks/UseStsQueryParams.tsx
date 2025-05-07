@@ -11,7 +11,8 @@ export const useStsQueryParams = () => {
     temp: string | null;
     rep_penalty: string | null;
     tts_provider: string | null;
-    keyterm: string[] | null;
+    endpoint_url: string | null;
+    endpoint_headers: Record<string, string> | null;
   }>({
     voice: defaultVoice.canonical_name,
     instructions: null,
@@ -20,25 +21,22 @@ export const useStsQueryParams = () => {
     temp: null,
     rep_penalty: null,
     tts_provider: null,
-    keyterm: null,
+    endpoint_url: null,
+    endpoint_headers: null,
   });
 
   const applyParamsToConfig = useCallback(
     (config: StsConfig) => {
-      const { voice, instructions, provider, model, temp, rep_penalty, tts_provider, keyterm } = params;
+      const { voice, instructions, provider, model, temp, rep_penalty, tts_provider } = params;
       return {
         ...config,
         agent: {
           ...config.agent,
-          listen: {
-            ...config.agent.listen,
-            ...{ keyterms: Array.isArray(keyterm) ? keyterm : keyterm ? [keyterm] : [] },
-          },
           think: {
             ...config.agent.think,
             ...(provider && model && { provider: { type: provider }, model }),
             ...(instructions && {
-              instructions: `${config.agent.think.instructions}\n${instructions}`,
+              prompt: `${config.agent.think.prompt}\n${instructions}`,
             }),
           },
           speak: {

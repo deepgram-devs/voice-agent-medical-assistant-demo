@@ -7,13 +7,14 @@ import { type Appointment, addAppointment, updateAppointment, getAllAppointments
 
 export default function Scheduling() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [currentAppointment, setCurrentAppointment] = useState({
-    type: '',
-    timestamp: '',
-    duration: 30,
-    notes: '',
+  const [currentAppointment, setCurrentAppointment] = useState<Omit<Appointment, 'id' | 'timestamp'>>({
     patientName: '',
     mrn: '',
+    date: '',
+    time: '',
+    provider: '',
+    reason: '',
+    status: 'pending'
   });
   const [isRecording, setIsRecording] = useState(false);
   const [isActiveAppointment, setIsActiveAppointment] = useState(false);
@@ -46,7 +47,7 @@ export default function Scheduling() {
   }, [status]);
 
   const handleSchedule = useCallback(async () => {
-    if (!currentAppointment.type || !currentAppointment.timestamp || !currentAppointment.patientName || !currentAppointment.mrn) {
+    if (!currentAppointment.patientName || !currentAppointment.mrn || !currentAppointment.date || !currentAppointment.time || !currentAppointment.provider || !currentAppointment.reason) {
       console.log('Missing required appointment information');
       return;
     }
@@ -54,13 +55,14 @@ export default function Scheduling() {
     try {
       const newAppointment: Appointment = {
         id: uuidv4(),
-        timestamp: new Date(currentAppointment.timestamp),
-        type: currentAppointment.type,
-        duration: currentAppointment.duration,
-        notes: currentAppointment.notes,
+        timestamp: new Date(`${currentAppointment.date}T${currentAppointment.time}`),
         patientName: currentAppointment.patientName,
         mrn: currentAppointment.mrn,
-        status: 'scheduled',
+        date: currentAppointment.date,
+        time: currentAppointment.time,
+        provider: currentAppointment.provider,
+        reason: currentAppointment.reason,
+        status: 'scheduled'
       };
 
       // Save to IndexedDB
@@ -70,18 +72,139 @@ export default function Scheduling() {
       setAppointments(prevAppointments => [...prevAppointments, newAppointment].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()));
 
       setCurrentAppointment({
-        type: '',
-        timestamp: '',
-        duration: 30,
-        notes: '',
         patientName: '',
         mrn: '',
+        date: '',
+        time: '',
+        provider: '',
+        reason: '',
+        status: 'pending'
       });
+
       setIsActiveAppointment(false);
     } catch (error) {
       console.error('Error scheduling appointment:', error);
     }
   }, [currentAppointment]);
+
+  // Handle function calls from Voice Agent API
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        // If it's an ArrayBuffer, try to decode as JSON
+        if (event.data instanceof ArrayBuffer) {
+          const text = new TextDecoder().decode(event.data);
+          try {
+            const message = JSON.parse(text);
+            if (message.type === 'FunctionCallRequest') {
+              const { functions } = message;
+
+              // Handle each function call
+              const handleFunctionCalls = async () => {
+                try {
+                  for (const func of functions) {
+                    const { id, name, arguments: argsStr } = func;
+                    const args = JSON.parse(argsStr);
+
+                    switch (name) {
+                      case 'set_patient_name':
+                        setCurrentAppointment(prev => ({
+                          ...prev,
+                          patientName: args.name
+                        }));
+                        break;
+                      case 'set_mrn':
+                        setCurrentAppointment(prev => ({
+                          ...prev,
+                          mrn: args.mrn
+                        }));
+                        break;
+                      case 'set_date':
+                        setCurrentAppointment(prev => ({
+                          ...prev,
+                          date: args.date
+                        }));
+                        break;
+                      case 'set_time':
+                        setCurrentAppointment(prev => ({
+                          ...prev,
+                          time: args.time
+                        }));
+                        break;
+                      case 'set_provider':
+                        setCurrentAppointment(prev => ({
+                          ...prev,
+                          provider: args.provider
+                        }));
+                        break;
+                      case 'set_reason':
+                        setCurrentAppointment(prev => ({
+                          ...prev,
+                          reason: args.reason
+                        }));
+                        break;
+                      case 'schedule_appointment':
+                        await handleSchedule();
+                        break;
+                      case 'clear_appointment':
+                        setCurrentAppointment({
+                          patientName: '',
+                          mrn: '',
+                          date: '',
+                          time: '',
+                          provider: '',
+                          reason: '',
+                          status: 'pending'
+                        });
+                        break;
+                      default:
+                        throw new Error(`Unknown function: ${name}`);
+                    }
+
+                    // Send success response
+                    sendSocketMessage(socket, {
+                      type: 'FunctionCallResponse',
+                      id,
+                      name,
+                      content: 'Success'
+                    });
+                  }
+                } catch (error) {
+                  console.error('Error handling function calls:', error);
+                  // Send error response for each failed function
+                  for (const func of functions) {
+                    sendSocketMessage(socket, {
+                      type: 'FunctionCallResponse',
+                      id: func.id,
+                      name: func.name,
+                      content: error instanceof Error ? error.message : 'Unknown error'
+                    });
+                  }
+                }
+              };
+
+              handleFunctionCalls();
+            }
+          } catch {
+            // Not JSON, likely audio data: handle or ignore as needed
+          }
+        } else if (typeof event.data === 'string') {
+          // (Optional: if you ever send string JSON)
+          const message = JSON.parse(event.data);
+          // handle JSON message
+        } else {
+          // Handle other types (e.g., Blob) if needed
+        }
+      } catch (error) {
+        console.error('Error handling message:', error);
+      }
+    };
+
+    socket.addEventListener('message', handleMessage);
+    return () => socket.removeEventListener('message', handleMessage);
+  }, [socket, handleSchedule]);
 
   // Handle voice commands
   useEffect(() => {
@@ -96,123 +219,32 @@ export default function Scheduling() {
     if (content === lastProcessedMessage.current) return;
     lastProcessedMessage.current = content;
 
-    if ((content.includes('scheduling') || content.includes('start scheduling'))) {
-      console.log('Starting scheduling process - resetting form');
+    if (content.includes('scheduling') || content.includes('start scheduling')) {
+      setIsActiveAppointment(true);
       setCurrentAppointment({
-        type: '',
-        timestamp: '',
-        duration: 30,
-        notes: '',
         patientName: '',
         mrn: '',
+        date: '',
+        time: '',
+        provider: '',
+        reason: '',
+        status: 'pending'
       });
-      hasStartedScheduling.current = true;
-    } else if ((content.includes('schedule') || content.includes('schedule appointment')) && isActiveAppointment) {
-      console.log('Handling schedule command');
-      handleSchedule();
-    } else if (content.includes('type') && content.includes('checkup')) {
-      console.log('Setting appointment type to checkup');
-      setCurrentAppointment(prev => ({
-        ...prev,
-        type: 'checkup'
-      }));
+    } else if (content.includes('cancel scheduling')) {
+      setIsActiveAppointment(false);
+      setCurrentAppointment({
+        patientName: '',
+        mrn: '',
+        date: '',
+        time: '',
+        provider: '',
+        reason: '',
+        status: 'pending'
+      });
     }
-  }, [messages, isActiveAppointment, handleSchedule]);
+  }, [messages]);
 
-  // Handle function calls from Voice Agent API
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleMessage = (event: MessageEvent) => {
-      if (typeof event.data !== 'string') return;
-
-      try {
-        const message = JSON.parse(event.data);
-        if (message.type !== 'FunctionCallRequest') return;
-
-        const { function_name, function_call_id, input } = message;
-        let success = true;
-
-        switch (function_name) {
-          case 'set_patient_name':
-            console.log('Setting patient name:', input.name);
-            setIsActiveAppointment(true);
-            setCurrentAppointment(prev => ({
-              ...prev,
-              patientName: input.name
-            }));
-            break;
-          case 'set_mrn':
-            console.log('Setting MRN:', input.mrn);
-            setCurrentAppointment(prev => ({
-              ...prev,
-              mrn: input.mrn
-            }));
-            break;
-          case 'set_appointment_type':
-            console.log('Setting appointment type:', input.type);
-            setCurrentAppointment(prev => ({
-              ...prev,
-              type: input.type
-            }));
-            break;
-          case 'set_appointment_datetime':
-            console.log('Setting appointment datetime:', input.datetime);
-            setCurrentAppointment(prev => ({
-              ...prev,
-              timestamp: input.datetime
-            }));
-            break;
-          case 'set_appointment_duration':
-            if (input.duration >= 30) {
-              console.log('Setting appointment duration:', input.duration);
-              setCurrentAppointment(prev => ({
-                ...prev,
-                duration: input.duration
-              }));
-            }
-            break;
-          case 'set_appointment_notes':
-            console.log('Setting appointment notes:', input.notes);
-            setCurrentAppointment(prev => ({
-              ...prev,
-              notes: input.notes
-            }));
-            break;
-          case 'schedule_appointment':
-            handleSchedule();
-            break;
-          case 'clear_appointment':
-            setCurrentAppointment({
-              type: '',
-              timestamp: '',
-              duration: 30,
-              notes: '',
-              patientName: '',
-              mrn: '',
-            });
-            break;
-          default:
-            success = false;
-            break;
-        }
-
-        // Send response back
-        sendSocketMessage(socket, {
-          type: "FunctionCallResponse",
-          function_call_id,
-          output: success ? "success" : "error"
-        });
-      } catch (error) {
-        console.error('Error handling message:', error);
-      }
-    };
-
-    socket.addEventListener('message', handleMessage);
-    return () => socket.removeEventListener('message', handleMessage);
-  }, [socket, handleSchedule]);
-
-  const handleStatusChange = async (id: string, status: 'scheduled' | 'completed' | 'cancelled') => {
+  const handleStatusChange = async (id: string, status: 'scheduled' | 'cancelled') => {
     try {
       const updatedAppointments = appointments.map(appointment =>
         appointment.id === id ? { ...appointment, status } : appointment
@@ -245,106 +277,107 @@ export default function Scheduling() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Scheduling</h2>
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-semibold text-gray-200">Appointment Scheduling</h2>
         <div className="flex items-center space-x-2">
-          <div
-            className={`h-3 w-3 rounded-full ${isRecording && isActiveAppointment ? 'bg-green-500 animate-pulse' : 'bg-gray-300'
+          <button
+            onClick={() => setIsRecording(!isRecording)}
+            className={`px-4 py-2 rounded-md ${isRecording
+              ? 'bg-red-500 hover:bg-red-600 text-white'
+              : 'bg-blue-500 hover:bg-blue-600 text-white'
               }`}
-          />
-          <span className="text-sm text-gray-400">
-            {isActiveAppointment ? (isRecording ? "Recording appointment..." : "Appointment started") : "Ready to start new appointment"}
-          </span>
+          >
+            {isRecording ? 'Stop Recording' : 'Start Recording'}
+          </button>
         </div>
       </div>
 
-      <div className="space-y-4">
-        <div className="rounded-lg border border-gray-800 p-4 bg-gray-900/50">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Patient Name</label>
-              <input
-                type="text"
-                value={currentAppointment.patientName}
-                onChange={(e) => setCurrentAppointment(prev => ({ ...prev, patientName: e.target.value }))}
-                className="w-full px-3 py-2 bg-gray-800 rounded-md text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter patient name"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Medical Record Number (MRN)</label>
-              <input
-                type="text"
-                value={currentAppointment.mrn}
-                onChange={(e) => setCurrentAppointment(prev => ({ ...prev, mrn: e.target.value }))}
-                className="w-full px-3 py-2 bg-gray-800 rounded-md text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter MRN"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Type</label>
-              <input
-                type="text"
-                value={currentAppointment.type}
-                onChange={(e) => setCurrentAppointment(prev => ({ ...prev, type: e.target.value }))}
-                className="w-full px-3 py-2 bg-gray-800 rounded-md text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter appointment type"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Date & Time</label>
-              <input
-                type="datetime-local"
-                value={currentAppointment.timestamp}
-                onChange={(e) => setCurrentAppointment(prev => ({ ...prev, timestamp: e.target.value }))}
-                className="w-full px-3 py-2 bg-gray-800 rounded-md text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Duration (minutes)</label>
-              <input
-                type="number"
-                value={currentAppointment.duration}
-                onChange={(e) => setCurrentAppointment(prev => ({ ...prev, duration: parseInt(e.target.value) }))}
-                className="w-full px-3 py-2 bg-gray-800 rounded-md text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Notes</label>
-              <input
-                type="text"
-                value={currentAppointment.notes}
-                onChange={(e) => setCurrentAppointment(prev => ({ ...prev, notes: e.target.value }))}
-                className="w-full px-3 py-2 bg-gray-800 rounded-md text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter any notes"
-              />
-            </div>
-          </div>
-          <div className="flex justify-between mt-4">
-            <div className="text-sm text-gray-400">
-              {isActiveAppointment ? (isRecording ? "Recording appointment..." : "Appointment started") : "Say 'Start Scheduling' to begin"}
-            </div>
-            <div className="space-x-2">
-              <button
-                onClick={() => setCurrentAppointment({
-                  type: '',
-                  timestamp: '',
-                  duration: 30,
-                  notes: '',
-                  patientName: '',
-                  mrn: '',
-                })}
-                className="px-4 py-2 text-gray-400 hover:text-gray-200"
-              >
-                Clear
-              </button>
-              <button
-                onClick={handleSchedule}
-                className="px-4 py-2 bg-gray-800 text-gray-200 rounded hover:bg-gray-700"
-                disabled={!isActiveAppointment}
-              >
-                Schedule
-              </button>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-4">
+          <div className="bg-gray-800 rounded-lg p-4">
+            <h3 className="text-lg font-medium text-gray-200 mb-4">New Appointment</h3>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-300">Patient Name</label>
+                <input
+                  type="text"
+                  value={currentAppointment.patientName}
+                  onChange={(e) => setCurrentAppointment(prev => ({ ...prev, patientName: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-800 rounded-md text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter patient name"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-300">Medical Record Number (MRN)</label>
+                <input
+                  type="text"
+                  value={currentAppointment.mrn}
+                  onChange={(e) => setCurrentAppointment(prev => ({ ...prev, mrn: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-800 rounded-md text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter MRN"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-300">Date</label>
+                <input
+                  type="date"
+                  value={currentAppointment.date}
+                  onChange={(e) => setCurrentAppointment(prev => ({ ...prev, date: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-800 rounded-md text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-300">Time</label>
+                <input
+                  type="time"
+                  value={currentAppointment.time}
+                  onChange={(e) => setCurrentAppointment(prev => ({ ...prev, time: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-800 rounded-md text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-300">Provider</label>
+                <input
+                  type="text"
+                  value={currentAppointment.provider}
+                  onChange={(e) => setCurrentAppointment(prev => ({ ...prev, provider: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-800 rounded-md text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter provider name"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-300">Reason</label>
+                <input
+                  type="text"
+                  value={currentAppointment.reason}
+                  onChange={(e) => setCurrentAppointment(prev => ({ ...prev, reason: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-800 rounded-md text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter appointment reason"
+                />
+              </div>
+              <div className="flex justify-end space-x-2">
+                <button
+                  onClick={() => setCurrentAppointment({
+                    patientName: '',
+                    mrn: '',
+                    date: '',
+                    time: '',
+                    provider: '',
+                    reason: '',
+                    status: 'pending'
+                  })}
+                  className="px-4 py-2 text-gray-400 hover:text-gray-200"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={handleSchedule}
+                  className="px-4 py-2 bg-gray-800 text-gray-200 rounded hover:bg-gray-700"
+                  disabled={!isActiveAppointment}
+                >
+                  Schedule
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -359,20 +392,16 @@ export default function Scheduling() {
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-gray-400">MRN: {appointment.mrn}</p>
-                    <p className="text-sm text-gray-400">Type: {appointment.type}</p>
-                    <p className="text-sm text-gray-400">
-                      Date: {new Date(appointment.timestamp).toLocaleString()}
-                    </p>
-                    <p className="text-sm text-gray-400">Duration: {appointment.duration} minutes</p>
-                    {appointment.notes && (
-                      <p className="text-sm text-gray-400">Notes: {appointment.notes}</p>
-                    )}
+                    <p className="text-sm text-gray-400">Date: {appointment.date}</p>
+                    <p className="text-sm text-gray-400">Time: {appointment.time}</p>
+                    <p className="text-sm text-gray-400">Provider: {appointment.provider}</p>
+                    <p className="text-sm text-gray-400">Reason: {appointment.reason}</p>
                   </div>
                 </div>
                 <div className="flex flex-col items-end space-y-2">
                   <div className="flex items-center space-x-2">
                     <span
-                      className={`px-2 py-1 text-xs rounded ${appointment.status === 'completed'
+                      className={`px-2 py-1 text-xs rounded ${appointment.status === 'scheduled'
                         ? 'bg-green-900/50 text-green-200'
                         : appointment.status === 'cancelled'
                           ? 'bg-red-900/50 text-red-200'
@@ -381,28 +410,13 @@ export default function Scheduling() {
                     >
                       {appointment.status}
                     </span>
-                    <select
-                      value={appointment.status}
-                      onChange={(e) =>
-                        handleStatusChange(
-                          appointment.id,
-                          e.target.value as 'scheduled' | 'completed' | 'cancelled'
-                        )
-                      }
-                      className="text-sm bg-gray-800 border-gray-700 rounded-md text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="scheduled">Scheduled</option>
-                      <option value="completed">Completed</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
+                  </div>
+                  <div className="flex space-x-2">
                     <button
-                      onClick={() => handleDelete(appointment.id)}
-                      className="text-gray-500 hover:text-red-500 transition-colors"
-                      title="Delete appointment"
+                      onClick={() => handleStatusChange(appointment.id, 'cancelled')}
+                      className="text-sm text-red-400 hover:text-red-300"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
+                      Cancel
                     </button>
                   </div>
                 </div>
